@@ -16,7 +16,6 @@ func main() {
 	msg := flag.String("msg", "", "msg")
 	branch := flag.String("branch", "", "branch")
 	force := flag.Bool("force", false, "force")
-
 	flag.Parse()
 
 	fmt.Println("+ setup action user")
@@ -30,9 +29,21 @@ func main() {
 	fmt.Println("+ files=", changedFiles)
 
 	if len(changedFiles) > 0 {
-		fmt.Printf("+changed files %d, start commit\n", len(changedFiles))
+		fmt.Printf("+changed files %d\n", len(changedFiles))
+
+		fmt.Println("+ git get branched")
+		currentBranch, branches := gitGetBranches()
+
+		createBranch := !branches[*branch]
+		fmt.Printf("+ current_branch: %s, new_branch: %s, checkout branch: %v\n", currentBranch, *branch, createBranch)
+		if *branch != "" && *branch != currentBranch {
+			gitNewBranch(*branch, createBranch)
+		}
+
+		fmt.Println("+ commit")
 		gitCommit(*msg)
 
+		fmt.Println("+ push")
 		gitPush(*branch, *force)
 	} else {
 		fmt.Println("+ no changed files, skip commit and push")
@@ -43,6 +54,24 @@ func main() {
 func setupActionUser() {
 	assert(goexec.New("git", "config", "--global", "user.name", "github-actions[bot]").RunInStream())
 	assert(goexec.New("git", "config", "--global", "user.email", "41898282+github-actions[bot]@users.noreply.github.com").RunInStream())
+}
+
+func gitGetBranches() (current string, res map[string]bool) {
+	res = map[string]bool{}
+	out, _, err := goexec.New("git", "branch").RunInTee()
+	assert(err)
+	for _, v := range strings.Split(out, "\n") {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if strings.HasPrefix(v, "* ") {
+			current = v[2:]
+		} else {
+			res[v] = true
+		}
+	}
+	return current, res
 }
 
 func gitGetChangedFiles() (res []string) {
@@ -63,12 +92,21 @@ func gitAddFiles(files []string) {
 	}
 }
 
+func gitNewBranch(branch string, create bool) {
+	args := []string{"git", "checkout"}
+	if create {
+		args = append(args, "-b")
+	}
+	args = append(args, branch)
+	assert(goexec.New(args...).RunInStream())
+}
+
 func gitCommit(msg string) {
 	assert(goexec.New("git", "commit", "-a", "-m", msg).RunInStream())
 }
 
 func gitPush(branch string, force bool) {
-	args := []string{"git", "push"}
+	args := []string{"git", "push", "--set-upstream", "origin"}
 	if branch != "" {
 		args = append(args, branch)
 	}
