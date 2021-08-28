@@ -41,7 +41,7 @@ func main() {
 
 // by: https://github.community/t/github-actions-bot-email-address/17204/5
 func setupActionUser() {
-	// goexec.New("git","config","--global","user.name","").RunInStream()
+	assert(goexec.New("git", "config", "--global", "user.name", "github-actions[bot]").RunInStream())
 	assert(goexec.New("git", "config", "--global", "user.email", "41898282+github-actions[bot]@users.noreply.github.com").RunInStream())
 }
 
