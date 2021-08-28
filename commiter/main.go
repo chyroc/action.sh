@@ -14,17 +14,29 @@ func main() {
 
 	addFiles := flag.String("add", "", "add files, split by `,`")
 	msg := flag.String("msg", "", "msg")
+	branch := flag.String("branch", "", "branch")
+	force := flag.Bool("force", false, "force")
 
 	flag.Parse()
 
-	// setupActionUser()
-	changedFiles:=gitGetChangedFiles()
-	fmt.Println(changedFiles)
-	return
+	fmt.Println("+ setup action user")
+	setupActionUser()
 
+	fmt.Println("+ git add files")
 	gitAddFiles(strings.Split(*addFiles, ","))
-	gitCommit(*msg)
 
+	fmt.Println("+ get changed files")
+	changedFiles := gitGetChangedFiles()
+	fmt.Println("+ files=", changedFiles)
+
+	if len(changedFiles) > 0 {
+		fmt.Printf("+changed files %d, start commit\n", len(changedFiles))
+		gitCommit(*msg)
+
+		gitPush(*branch, *force)
+	} else {
+		fmt.Println("+ no changed files, skip commit and push")
+	}
 }
 
 // by: https://github.community/t/github-actions-bot-email-address/17204/5
@@ -52,7 +64,18 @@ func gitAddFiles(files []string) {
 }
 
 func gitCommit(msg string) {
-	_ = goexec.New("git", "commit", "-a", "-m", msg).RunInStream()
+	assert(goexec.New("git", "commit", "-a", "-m", msg).RunInStream())
+}
+
+func gitPush(branch string, force bool) {
+	args := []string{"git", "push"}
+	if branch != "" {
+		args = append(args, branch)
+	}
+	if force {
+		args = append(args, "-f")
+	}
+	assert(goexec.New(args...).RunInStream())
 }
 
 func assert(err error) {
@@ -60,6 +83,3 @@ func assert(err error) {
 		log.Fatalln(err)
 	}
 }
-
-// git commit -am "commit-by-action: $(date)" || (echo "no commit" && exit 0)
-// git push
