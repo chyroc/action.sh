@@ -17,7 +17,10 @@ func main() {
 
 	flag.Parse()
 
-	setupActionUser()
+	// setupActionUser()
+	changedFiles:=gitGetChangedFiles()
+	fmt.Println(changedFiles)
+	return
 
 	gitAddFiles(strings.Split(*addFiles, ","))
 	gitCommit(*msg)
@@ -28,6 +31,17 @@ func main() {
 func setupActionUser() {
 	// goexec.New("git","config","--global","user.name","").RunInStream()
 	assert(goexec.New("git", "config", "--global", "user.email", "41898282+github-actions[bot]@users.noreply.github.com").RunInStream())
+}
+
+func gitGetChangedFiles() (res []string) {
+	// 	git diff HEAD --name-only --diff-filter=AMCR
+	out, _, err := goexec.New("git", "diff", "HEAD", "--name-only", "--diff-filter=AMCR").RunInTee()
+	assert(err)
+	for _, v := range strings.Split(out, "\n") {
+		v = strings.TrimSpace(v)
+		res = append(res, v)
+	}
+	return res
 }
 
 func gitAddFiles(files []string) {
